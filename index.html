@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>短线精灵 - 实时版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+            background: #0f1419;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            padding-bottom: 80px;
+        }
+        .page { display: none; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .bg-dark { background: #0f1419; }
+        .bg-card { background: #1a2332; }
+        .text-red { color: #ff4757; }
+        .text-green { color: #2ed573; }
+        .text-gold { color: #ffa502; }
+        .text-gray { color: #747d8c; }
+
+        .tag { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+        .tag-red { background: #ff4757; color: white; }
+        .tag-green { background: #2ed573; color: white; }
+        .tag-gold { background: #ffa502; color: #0f1419; }
+        .tag-blue { background: #3742fa; color: white; }
+        .tag-purple { background: #a55eea; color: white; }
+        .tag-gray { background: #57606f; color: white; }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a2332;
+            border-top: 1px solid #2f3542;
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+            z-index: 1000;
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #57606f;
+            font-size: 10px;
+            padding: 4px 16px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .nav-item.active { color: #ff4757; }
+        .nav-icon { font-size: 20px; margin-bottom: 2px; }
+
+        .card {
+            background: #1a2332;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .rank-tag {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: #ffa502;
+            color: #0f1419;
+            font-size: 9px;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 8px 0 8px 0;
+        }
+
+        .tab-bar {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            scrollbar-width: none;
+        }
+        .tab-bar::-webkit-scrollbar { display: none; }
+        .tab-item {
+            padding: 6px 16px;
+            border-radius: 16px;
+            font-size: 13px;
+            white-space: nowrap;
+            background: #2f3542;
+            color: #747d8c;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .tab-item.active {
+            background: #ff4757;
+            color: white;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            color: #747d8c;
+        }
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #2f3542;
+            border-top-color: #ff4757;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .stock-item {
+            background: #1a2332;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .stock-item:active {
+            background: #2f3542;
+        }
+
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.85);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 9999;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .toast.show { opacity: 1; }
+        .toast.hide { opacity: 0; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 2000;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-content {
+            background: #1a2332;
+            border-radius: 16px 16px 0 0;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 20px;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .refresh-btn {
+            background: #2f3542;
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .refresh-btn:active { background: #57606f; }
+
+        .data-error {
+            text-align: center;
+            padding: 20px;
+            color: #747d8c;
+        }
+        .data-error .retry {
+            color: #ff4757;
+            margin-top: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 首页 -->
+    <div id="page-home" class="page active">
+        <div class="px-4 py-3 flex justify-between items-center">
+            <div>
+                <span class="text-xl font-bold">短线精灵</span>
+                <span id="current-time" class="text-gray text-xs ml-2">--:--:--</span>
+            </div>
+            <div class="flex gap-3">
+                <button class="refresh-btn" onclick="refreshHome()">🔄 刷新</button>
+            </div>
+        </div>
+        <div id="home-content" class="px-4">
+            <div class="loading"><div class="spinner"></div>加载中...</div>
+        </div>
+    </div>
+
+    <!-- 板块页 -->
+    <div id="page-board" class="page">
+        <div class="px-4 py-3 flex justify-between items-center">
+            <span class="text-xl font-bold">板块掘金</span>
+            <button class="refresh-btn" onclick="refreshBoard()">🔄 刷新</button>
+        </div>
+        <div class="px-4 mb-4">
+            <div class="tab-bar" id="board-tabs">
+                <span class="tab-item active" data-cat="hot" onclick="switchBoardCat(this)">热门板块</span>
+                <span class="tab-item" data-cat="up" onclick="switchBoardCat(this)">涨幅榜</span>
+                <span class="tab-item" data-cat="down" onclick="switchBoardCat(this)">跌幅榜</span>
+                <span class="tab-item" data-cat="amount" onclick="switchBoardCat(this)">成交额</span>
+            </div>
+        </div>
+        <div id="board-content" class="px-4">
+            <div class="loading"><div class="spinner"></div>加载中...</div>
+        </div>
+    </div>
+
+    <!-- 连板页 -->
+    <div id="page-lianban" class="page">
+        <div class="px-4 py-3 flex justify-between items-center">
+            <span class="text-xl font-bold">连板天梯</span>
+            <button class="refresh-btn" onclick="refreshLianban()">🔄 刷新</button>
+        </div>
+        <div id="lianban-content" class="px-4">
+            <div class="loading"><div class="spinner"></div>加载中...</div>
+        </div>
+    </div>
+
+    <!-- 选股页 -->
+    <div id="page-xuangu" class="page">
+        <div class="px-4 py-3 flex justify-between items-center">
+            <span class="text-xl font-bold">智能选股</span>
+            <button class="tag-red text-xs px-3 py-1.5 rounded" onclick="runAllStrategies()">运行全部</button>
+        </div>
+        <div class="px-4 mb-4">
+            <div class="tab-bar">
+                <span class="tab-item active" data-cat="全部" onclick="switchZhanfaCat(this)">全部战法</span>
+                <span class="tab-item" data-cat="首板突破" onclick="switchZhanfaCat(this)">首板突破</span>
+                <span class="tab-item" data-cat="连板龙头" onclick="switchZhanfaCat(this)">连板龙头</span>
+                <span class="tab-item" data-cat="强势股" onclick="switchZhanfaCat(this)">强势股</span>
+            </div>
+        </div>
+        <div id="xuangu-content" class="px-4">
+            <div class="loading"><div class="spinner"></div>加载中...</div>
+        </div>
+    </div>
+
+    <!-- 自选页 -->
+    <div id="page-zixuan" class="page">
+        <div class="px-4 py-3 flex justify-between items-center">
+            <span class="text-xl font-bold">我的自选</span>
+            <div class="flex gap-3">
+                <button class="refresh-btn" onclick="refreshZixuan()">🔄 刷新</button>
+                <span class="text-xl cursor-pointer" onclick="showAddStockModal()">➕</span>
+            </div>
+        </div>
+        <div id="zixuan-content" class="px-4">
+            <div class="loading"><div class="spinner"></div>加载中...</div>
+        </div>
+    </div>
+
+    <!-- 底部导航 -->
+    <div class="bottom-nav">
+        <div class="nav-item active" data-page="home" onclick="switchPage('home')">
+            <div class="nav-icon">🏠</div>
+            <span>首页</span>
+        </div>
+        <div class="nav-item" data-page="board" onclick="switchPage('board')">
+            <div class="nav-icon">📊</div>
+            <span>板块</span>
+        </div>
+        <div class="nav-item" data-page="lianban" onclick="switchPage('lianban')">
+            <div class="nav-icon">📈</div>
+            <span>连板</span>
+        </div>
+        <div class="nav-item" data-page="xuangu" onclick="switchPage('xuangu')">
+            <div class="nav-icon">🔍</div>
+            <span>选股</span>
+        </div>
+        <div class="nav-item" data-page="zixuan" onclick="switchPage('zixuan')">
+            <div class="nav-icon">⭐</div>
+            <span>自选</span>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast hide"></div>
+
+    <!-- 股票详情弹窗 -->
+    <div id="stock-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+    // ==================== 全局数据 ====================
+    const appData = {
+        marketIndex: {},
+        zixuan: JSON.parse(localStorage.getItem('zixuan') || '[]'),
+        hotStocks: [],
+        boardData: [],
+        lianbanData: [],
+        lastUpdate: null
+    };
+
+    let currentZhanfaCat = '全部';
+    let toastTimer = null;
+
+    // ==================== 腾讯行情API (qt.gtimg.cn) ====================
+    // CORS: * (开放)，支持所有域名跨域访问
+    // 格式: v_sh000001="1~上证指数~000001~现价~昨收~今开~成交量~..."
+    // 字段索引: 0=类型,1=名称,2=代码,3=现价,4=昨收,5=今开,6=成交量,7=外盘,8=内盘,
+    //           9=买入,10=卖出,11=现量,12=涨跌额,13=涨跌幅,14=最高,15=最低,
+    //           16=时间,17=日期,18=实时
+
+    async function fetchTencentQuotes(codes) {
+        if (!codes || codes.length === 0) return {};
+        const qtCodes = codes.map(c => {
+            c = c.toString().replace(/\s/g, '');
+            if (c.startsWith('6')) return 'sh' + c;
+            if (c.startsWith('0') || c.startsWith('3')) return 'sz' + c;
+            return c;
+        }).join(',');
+
+        const url = `https://qt.gtimg.cn/q=${qtCodes}`;
+        try {
+            const resp = await fetch(url);
+            const text = await resp.text();
+            const result = {};
+            const lines = text.trim().split('\n');
+            for (const line of lines) {
+                const m = line.match(/v_(sz|sh)(\w+)="([^"]*)"/);
+                if (!m) continue;
+                const prefix = m[1], code = m[2], raw = m[3];
+                const f = raw.split('~');
+                if (f.length < 20) continue;
+                const price = parseFloat(f[3]) || 0;
+                const close = parseFloat(f[4]) || 0;
+                const open = parseFloat(f[5]) || 0;
+                const high = parseFloat(f[14]) || 0;
+                const low = parseFloat(f[15]) || 0;
+                const vol = parseInt(f[6]) || 0;
+                const amount = parseFloat(f[37]) || 0;
+                const chgAmt = parseFloat(f[12]) || 0;
+                const chgPct = parseFloat(f[13]) || 0;
+                const time = f[16] || '';
+                result[code] = {
+                    code,
+                    name: f[1],
+                    price,
+                    close,
+                    open,
+                    high,
+                    low,
+                    vol,
+                    amount,
+                    change: chgAmt,
+                    changePct: chgPct,
+                    time,
+                    market: prefix === 'sh' ? '沪' : (code.startsWith('002') || code.startsWith('003') ? '深' : (code.startsWith('3') ? '创' : '深'))
+                };
+            }
+            return result;
+        } catch (e) {
+            console.error('腾讯API失败:', e);
+            return {};
+        }
+    }
+
+    // ==================== 东方财富JSONP (备选/补充) ====================
+    async function fetchEastmoneyJSONP(secid) {
+        const cb = 'em_' + Date.now();
+        const url = `https://push2.eastmoney.com/api/qt/stock/get?ut=fa5fd1943c7b386f172d6893dbfba10b&fields=f57,f58,f107,f43,f169,f170&secid=${secid}&cb=${cb}`;
+        return new Promise(resolve => {
+            const script = document.createElement('script');
+            script.src = url;
+            script.onerror = () => { document.head.removeChild(script); resolve(null); };
+            window[cb] = (data) => {
+                if (data && data.data) {
+                    const d = data.data;
+                    resolve({
+                        price: d.f43 / 100,
+                        close: d.f170 / 100,
+                        high: d.f169 / 100,
+                        changePct: d.f107 / 100,
+                        name: d.f58
+                    });
+                } else resolve(null);
+                delete window[cb];
+                document.head.removeChild(script);
+            };
+            document.head.appendChild(script);
+            setTimeout(() => { if (window[cb]) { delete window[cb]; document.head.removeChild(script); resolve(null); } }, 5000);
+        });
+    }
+
+    // ==================== 获取大盘指数 ====================
+    async function fetchMarketIndex() {
+        const data = await fetchTencentQuotes(['000001', '399001', '399006', '000300', '000016']);
+        appData.marketIndex = {
+            sh: data['000001'] || { name: '上证指数', price: '--', changePct: 0, change: 0 },
+            sz: data['399001'] || { name: '深证成指', price: '--', changePct: 0, change: 0 },
+            cy: data['399006'] || { name: '创业板指', price: '--', changePct: 0, change: 0 },
+            hs300: data['000300'] || null,
+            sz50: data['000016'] || null
+        };
+        return appData.marketIndex;
+    }
+
+    // ==================== 获取热门股票 ====================
+    async function fetchHotStocks() {
+        // 热门股票列表（可扩展）
+        const codes = [
+            '000001','000002','000063','000100','000333',
+            '000538','000568','000651','000725','000858',
+            '002001','002007','002024','002027','002142',
+            '002230','002236','002352','002415','002460',
+            '002594','002714','300003','300014','300015',
+            '300033','300059','300122','300124','300274',
+            '300408','300413','300433','300498','300750',
+            '600000','600009','600016','600028','600030',
+            '600031','600036','600048','600050','600104',
+            '600276','600309','600406','600436','600519',
+            '600585','600690','600703','600745','600809',
+            '600837','600887','600900','601012','601066',
+            '601088','601138','601166','601186','601211',
+            '601288','601318','601398','601601','601628',
+            '601668','601688','601766','601857','601888',
+            '601899','601939','601985','603288','603501',
+            '603659','603993'
+        ];
+        const data = await fetchTencentQuotes(codes);
+        appData.hotStocks = Object.values(data).filter(s => s.price > 0);
+        return appData.hotStocks;
+    }
+
+    // ==================== 渲染首页 ====================
+    async function renderHome() {
+        const idx = appData.marketIndex;
+        const container = document.getElementById('home-content');
+
+        const fmt = (s) => {
+            if (!s || !s.price || s.price === '--' || s.price === 0) return { price: '--', chg: 0, chgPct: 0, cls: 'text-gray', sign: '' };
+            const c = s.changePct || 0;
+            const cls = c >= 0 ? 'text-red' : 'text-green';
+            const sign = c >= 0 ? '+' : '';
+            return { price: s.price.toFixed(2), chg: (s.change || 0).toFixed(2), chgPct: c.toFixed(2), cls, sign };
+        };
+
+        const sh = fmt(idx.sh), sz = fmt(idx.sz), cy = fmt(idx.cy);
+
+        // 市场情绪（基于涨跌家数估算）
+        const hotCount = appData.hotStocks.filter(s => s.changePct > 0).length;
+        const totalCount = appData.hotStocks.length;
+        const emotionRatio = totalCount > 0 ? hotCount / totalCount : 0.5;
+        const emotionScore = Math.round(emotionRatio * 100);
+        const emotionLabel = emotionScore > 70 ? '偏热' : emotionScore < 40 ? '偏冷' : '中性';
+        const needleDeg = (emotionRatio * 120) - 60; // -60到60度
+
+        container.innerHTML = `
+            <div class="card flex justify-around py-4">
+                <div class="text-center" onclick="showIndexDetail('sh000001')">
+                    <div class="text-gray text-xs mb-1">上证指数</div>
+                    <div class="${sh.cls} text-lg font-bold">${sh.price}</div>
+                    <div class="${sh.cls} text-xs">${sh.sign}${sh.chgPct}%</div>
+                </div>
+                <div class="text-center" onclick="showIndexDetail('sz399001')">
+                    <div class="text-gray text-xs mb-1">深证成指</div>
+                    <div class="${sz.cls} text-lg font-bold">${sz.price}</div>
+                    <div class="${sz.cls} text-xs">${sz.sign}${sz.chgPct}%</div>
+                </div>
+                <div class="text-center" onclick="showIndexDetail('sz399006')">
+                    <div class="text-gray text-xs mb-1">创业板指</div>
+                    <div class="${cy.cls} text-lg font-bold">${cy.price}</div>
+                    <div class="${cy.cls} text-xs">${cy.sign}${cy.chgPct}%</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="font-bold text-sm">市场情绪</span>
+                    <span class="text-gold text-sm">${emotionLabel} ${emotionScore}分</span>
+                </div>
+                <div style="position:relative;height:80px;display:flex;align-items:flex-end;justify-content:center;">
+                    <div style="width:160px;height:70px;background:conic-gradient(from 180deg at 50% 100%, #2ed573 0deg, #ffa502 60deg, #ff4757 120deg);border-radius:160px 160px 0 0;mask:radial-gradient(circle at 50% 100%,transparent 45px,black 47px);-webkit-mask:radial-gradient(circle at 50% 100%,transparent 45px,black 47px);">
+                    </div>
+                    <div style="position:absolute;bottom:0;left:50%;transform-origin:bottom center;transform:translateX(-50%) rotate(${needleDeg}deg);transition:transform 0.5s;">
+                        <div style="width:3px;height:55px;background:#fff;border-radius:2px;margin-left:-1.5px;"></div>
+                    </div>
+                    <div style="position:absolute;bottom:5px;left:50%;transform:translateX(-50%);text-align:center;">
+                        <div style="font-size:22px;font-weight:bold;color:#ffa502;">${emotionScore}</div>
+                    </div>
+                </div>
+                <div class="flex justify-between text-xs text-gray mt-1 px-6">
+                    <span>🧊 恐慌</span><span>⚖️ 中性</span><span>🔥 狂热</span>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="font-bold">热门股票</span>
+                    <span class="text-gray text-xs">点击查看详情</span>
+                </div>
+                <div id="home-stocks-list">
+                    ${renderHotStocksList(appData.hotStocks.slice(0, 8))}
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="font-bold">快速入口</span>
+                </div>
+                <div class="grid-3">
+                    <div class="card text-center" style="padding:12px;cursor:pointer" onclick="switchPage('xuangu')">
+                        <div class="text-2xl mb-1">🔍</div>
+                        <div class="text-xs text-gray">智能选股</div>
+                    </div>
+                    <div class="card text-center" style="padding:12px;cursor:pointer" onclick="switchPage('lianban')">
+                        <div class="text-2xl mb-1">📈</div>
+                        <div class="text-xs text-gray">连板天梯</div>
+                    </div>
+                    <div class="card text-center" style="padding:12px;cursor:pointer" onclick="switchPage('zixuan')">
+                        <div class="text-2xl mb-1">⭐</div>
+                        <div class="text-xs text-gray">我的自选</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderHotStocksList(stocks) {
+        if (!stocks || stocks.length === 0) {
+            return '<div class="data-error">暂无数据<span class="retry" onclick="refreshHome()">点击重试</span></div>';
+        }
+        return stocks.map(s => {
+            const cls = s.changePct >= 0 ? 'text-red' : 'text-green';
+            const sign = s.changePct >= 0 ? '+' : '';
+            return `
+                <div class="stock-item" onclick="showStockDetail('${s.code}')">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="font-bold">${s.name}</span>
+                            <span class="text-gray text-xs ml-2">${s.code}</span>
+                        </div>
+                        <div class="text-right">
+                            <div class="${cls} font-bold">${s.price > 0 ? s.price.toFixed(2) : '--'}</div>
+                            <div class="${cls} text-xs">${sign}${(s.changePct || 0).toFixed(2)}%</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // ==================== 渲染板块页 ====================
+    async function renderBoard(cat = 'hot') {
+        const container = document.getElementById('board-content');
+
+        if (appData.hotStocks.length === 0) {
+            await fetchHotStocks();
+        }
+
+        let stocks = [...appData.hotStocks].filter(s => s.price > 0);
+
+        if (cat === 'up') {
+            stocks.sort((a, b) => (b.changePct || 0) - (a.changePct || 0));
+        } else if (cat === 'down') {
+            stocks.sort((a, b) => (a.changePct || 0) - (b.changePct || 0));
+        } else if (cat === 'amount') {
+            stocks.sort((a, b) => (b.amount || 0) - (a.amount || 0));
+        } else {
+            // hot: 按涨幅排序取前
+            stocks.sort((a, b) => (b.changePct || 0) - (a.changePct || 0));
+        }
+
+        const limitUp = stocks.filter(s => (s.changePct || 0) >= 9.9);
+        const limitDown = stocks.filter(s => (s.changePct || 0) <= -9.9);
+
+        container.innerHTML = `
+            <div class="card flex justify-around mb-4 py-3">
+                <div class="text-center">
+                    <div class="text-gray text-xs mb-1">涨停</div>
+                    <div class="text-red text-xl font-bold">${limitUp.length}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-gray text-xs mb-1">跌停</div>
+                    <div class="text-green text-xl font-bold">${limitDown.length}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-gray text-xs mb-1">上涨</div>
+                    <div class="text-red text-xl font-bold">${stocks.filter(s=>(s.changePct||0)>0).length}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-gray text-xs mb-1">下跌</div>
+                    <div class="text-green text-xl font-bold">${stocks.filter(s=>(s.changePct||0)<0).length}</div>
+                </div>
+            </div>
+            <div id="board-list">
+                ${renderStockList(stocks.slice(0, 50))}
+            </div>
+        `;
+    }
+
+    // ==================== 渲染连板页 ====================
+    async function renderLianban() {
+        const container = document.getElementById('lianban-content');
+
+        if (appData.hotStocks.length === 0) {
+            await fetchHotStocks();
+        }
+
+        const stocks = [...appData.hotStocks].filter(s => s.price > 0 && (s.changePct || 0) >= 9.5);
+        stocks.sort((a, b) => (b.changePct || 0) - (a.changePct || 0));
+
+        const limitUpCount = stocks.length;
+        const limitDownCount = stocks.filter(s => (s.changePct || 0) <= -9.9).length;
+        const maxBoard = stocks.length > 0 ? Math.max(...stocks.map(s => s.changePct || 0)) : 0;
+
+        container.innerHTML = `
+            <div class="card flex justify-around mb-4 py-3">
+                <div class="text-center">
+                    <div class="text-gray text-xs mb-1">涨停家数</div>
+                    <div class="text-red text-xl font-bold">${limitUpCount}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-gray text-xs mb-1">跌停家数</div>
+                    <div class="text-green text-xl font-bold">${limitDownCount}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-gray text-xs mb-1">最高涨幅</div>
+                    <div class="text-gold text-xl font-bold">${maxBoard > 0 ? maxBoard.toFixed(2) : '--'}%</div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <span class="font-bold text-sm">涨停股票 (${stocks.length})</span>
+            </div>
+            <div id="lianban-list">
+                ${stocks.length > 0 ? renderStockList(stocks) : '<div class="data-error">暂无涨停数据<br><span class="retry" onclick="refreshLianban()">点击刷新</span></div>'}
+            </div>
+        `;
+    }
+
+    // ==================== 渲染选股页 ====================
+    async function renderXuangu() {
+        const container = document.getElementById('xuangu-content');
+
+        const strategies = [
+            { name: '首板突破', desc: '今日首次涨停，突破关键价位', icon: '🚀', color: 'tag-red' },
+            { name: '连板龙头', desc: '连续涨停，市场最强龙头', icon: '🐉', color: 'tag-gold' },
+            { name: '强势股', desc: '涨幅靠前，趋势强劲', icon: '⚡', color: 'tag-purple' }
+        ];
+
+        container.innerHTML = `
+            <div class="card text-center py-8">
+                <div class="text-4xl mb-4">🔍</div>
+                <div class="font-bold mb-2">智能选股系统</div>
+                <div class="text-gray text-sm mb-1">基于实时行情数据筛选</div>
+                <div class="text-gray text-xs mb-6">数据来源：腾讯行情</div>
+                <button onclick="runAllStrategies()" class="tag-red px-8 py-3 rounded-lg font-bold text-base">▶ 运行全部战法</button>
+            </div>
+            ${strategies.map(s => `
+                <div class="card cursor-pointer" onclick="runSingleStrategy('${s.name}')">
+                    <div class="flex items-center gap-3">
+                        <div class="text-3xl">${s.icon}</div>
+                        <div class="flex-1">
+                            <div class="font-bold">${s.name}</div>
+                            <div class="text-gray text-xs mt-1">${s.desc}</div>
+                        </div>
+                        <div class="${s.color} text-xs px-2 py-1 rounded">点击运行</div>
+                    </div>
+                </div>
+            `).join('')}
+            <div id="xuangu-results" class="mt-4"></div>
+        `;
+    }
+
+    // ==================== 战法选股 ====================
+    async function runAllStrategies() {
+        showToast('正在运行战法选股...');
+        const results = {
+            '首板突破': await strategyFirstLimitUp(),
+            '连板龙头': await strategyLimitUpLeader(),
+            '强势股': await strategyStrongStocks()
+        };
+        renderXuanguResults(results);
+        showToast('选股完成！共找到 ' + Object.values(results).flat().length + ' 只');
+    }
+
+    async function runSingleStrategy(name) {
+        showToast(`正在运行${name}...`);
+        let results = {};
+        if (name === '首板突破') results = { '首板突破': await strategyFirstLimitUp() };
+        else if (name === '连板龙头') results = { '连板龙头': await strategyLimitUpLeader() };
+        else if (name === '强势股') results = { '强势股': await strategyStrongStocks() };
+        renderXuanguResults(results);
+        showToast('完成！');
+    }
+
+    async function strategyFirstLimitUp() {
+        if (appData.hotStocks.length === 0) await fetchHotStocks();
+        return appData.hotStocks
+            .filter(s => s.changePct >= 9.9 && s.changePct <= 10.5 && s.price > 0)
+            .sort((a, b) => b.changePct - a.changePct)
+            .slice(0, 10)
+            .map(s => ({ ...s, reason: '首板涨停，突破关键价位', board: s.market + '市' }));
+    }
+
+    async function strategyLimitUpLeader() {
+        if (appData.hotStocks.length === 0) await fetchHotStocks();
+        return appData.hotStocks
+            .filter(s => s.changePct >= 9.5 && s.price > 0)
+            .sort((a, b) => b.changePct - a.changePct)
+            .slice(0, 8)
+            .map((s, i) => ({ ...s, reason: '强势涨停，板块领涨', board: s.market + '市', days: i + 1 }));
+    }
+
+    async function strategyStrongStocks() {
+        if (appData.hotStocks.length === 0) await fetchHotStocks();
+        return appData.hotStocks
+            .filter(s => s.changePct >= 5 && s.price > 0)
+            .sort((a, b) => b.changePct - a.changePct)
+            .slice(0, 10)
+            .map(s => ({ ...s, reason: '涨幅靠前，趋势强劲', board: s.market + '市' }));
+    }
+
+    function renderXuanguResults(results) {
+        const container = document.getElementById('xuangu-results');
+        if (!container) return;
+        let html = '';
+        for (const [name, stocks] of Object.entries(results)) {
+            if (!stocks || stocks.length === 0) continue;
+            html += `
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="font-bold">${name} <span class="text-gray text-xs">(${stocks.length}只)</span></span>
+                    </div>
+                    ${renderStockList(stocks)}
+                </div>
+            `;
+        }
+        container.innerHTML = html || '<div class="text-center text-gray py-4">暂无选股结果</div>';
+    }
+
+    // ==================== 渲染自选页 ====================
+    async function renderZixuan() {
+        const container = document.getElementById('zixuan-content');
+        const zixuan = appData.zixuan;
+
+        if (zixuan.length === 0) {
+            container.innerHTML = `
+                <div class="card text-center py-12">
+                    <div class="text-5xl mb-4">⭐</div>
+                    <div class="font-bold mb-2">暂无自选股票</div>
+                    <div class="text-gray text-sm mb-6">点击右上角 + 添加自选</div>
+                    <div class="text-gray text-xs">热门推荐</div>
+                    <div class="mt-3">
+                        ${['贵州茅台','宁德时代','比亚迪','东方财富'].map(n => `
+                            <div class="inline-block mx-1 mb-2 px-3 py-1 rounded-full bg #2f3542 text-xs cursor-pointer" onclick="addZixuanByName('${n}')">${n}</div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const codes = zixuan.map(s => s.code);
+        const data = await fetchTencentQuotes(codes);
+        const updated = codes.map(code => {
+            const s = data[code];
+            if (s) return s;
+            const orig = zixuan.find(z => z.code === code);
+            return orig ? { ...orig, price: 0 } : null;
+        }).filter(Boolean);
+
+        // 更新本地数据
+        updated.forEach(s => {
+            const idx = appData.zixuan.findIndex(z => z.code === s.code);
+            if (idx >= 0) {
+                appData.zixuan[idx] = { ...appData.zixuan[idx], ...s };
+            }
+        });
+
+        container.innerHTML = renderStockList(updated);
+    }
+
+    function addZixuanByName(name) {
+        // 通过名称匹配代码
+        const nameToCode = {
+            '贵州茅台': '600519', '宁德时代': '300750', '比亚迪': '002594',
+            '东方财富': '300059', '招商银行': '600036', '中国平安': '601318',
+            '五粮液': '000858', '美的集团': '000333', '恒瑞医药': '600276',
+            '隆基绿能': '601012', '中芯国际': '688981', '科大讯飞': '002230'
+        };
+        const code = nameToCode[name];
+        if (code) addToZixuan(code, name);
+    }
+
+    function addToZixuan(code, name) {
+        if (appData.zixuan.find(s => s.code === code)) {
+            showToast('已在自选中');
+            return;
+        }
+        appData.zixuan.push({ code, name: name || code });
+        localStorage.setItem('zixuan', JSON.stringify(appData.zixuan));
+        showToast(`已添加 ${name || code}`);
+        refreshZixuan();
+    }
+
+    function removeFromZixuan(code) {
+        appData.zixuan = appData.zixuan.filter(s => s.code !== code);
+        localStorage.setItem('zixuan', JSON.stringify(appData.zixuan));
+        showToast('已删除');
+        refreshZixuan();
+    }
+
+    function showAddStockModal() {
+        const code = prompt('请输入股票代码（6位数字，如 000001、600036）：');
+        if (code && /^\d{6}$/.test(code)) {
+            addToZixuan(code);
+        } else if (code) {
+            showToast('请输入6位股票代码');
+        }
+    }
+
+    // ==================== 通用股票列表渲染 ====================
+    function renderStockList(stocks) {
+        if (!stocks || stocks.length === 0) {
+            return '<div class="data-error">暂无数据</div>';
+        }
+        return stocks.map((s, i) => {
+            const cls = (s.changePct || 0) >= 0 ? 'text-red' : 'text-green';
+            const sign = (s.changePct || 0) >= 0 ? '+' : '';
+            const price = (s.price || 0) > 0 ? s.price.toFixed(2) : '--';
+            const pct = (s.changePct || 0).toFixed(2);
+            const amt = s.amount ? formatAmount(s.amount) : '';
+
+            return `
+                <div class="stock-item" onclick="showStockDetail('${s.code}')" style="padding:12px 16px;">
+                    <div class="flex justify-between items-center">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold">${s.name || s.code}</span>
+                                <span class="text-gray text-xs">${s.code}</span>
+                                ${amt ? `<span class="text-gray text-xs">${amt}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="${cls} font-bold text-base">${price}</div>
+                            <div class="${cls} text-xs">${sign}${pct}%</div>
+                        </div>
+                    </div>
+                    ${s.reason ? `<div class="mt-1 text-gold text-xs">📌 ${s.reason}</div>` : ''}
+                </div>
+            `;
+        }).join('');
+    }
+
+    function formatAmount(amt) {
+        if (amt >= 100000000) return (amt / 100000000).toFixed(1) + '亿';
+        if (amt >= 10000) return (amt / 10000).toFixed(0) + '万';
+        return amt.toFixed(0);
+    }
+
+    // ==================== 股票详情弹窗 ====================
+    async function showStockDetail(code) {
+        const modal = document.getElementById('stock-modal');
+        const body = document.getElementById('modal-body');
+        modal.classList.add('show');
+
+        body.innerHTML = '<div class="loading"><div class="spinner"></div>加载中...</div>';
+
+        const data = await fetchTencentQuotes([code]);
+        const s = data[code];
+
+        if (!s) {
+            body.innerHTML = '<div class="text-center py-8 text-gray">数据加载失败<br><span class="text-red mt-2 cursor-pointer" onclick="showStockDetail(\'' + code + '\')">点击重试</span></div>';
+            return;
+        }
+
+        const cls = s.changePct >= 0 ? 'text-red' : 'text-green';
+        const sign = s.changePct >= 0 ? '+' : '';
+        const isZixuan = appData.zixuan.find(z => z.code === code);
+
+        body.innerHTML = `
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <div class="text-xl font-bold">${s.name}</div>
+                    <div class="text-gray text-sm">${s.code} · ${s.market}市</div>
+                </div>
+                <div class="text-right">
+                    <div class="${cls} text-2xl font-bold">${s.price > 0 ? s.price.toFixed(2) : '--'}</div>
+                    <div class="${cls} text-sm">${sign}${(s.changePct || 0).toFixed(2)}%</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-4 gap-3 mb-4">
+                <div class="text-center">
+                    <div class="text-gray text-xs">今开</div>
+                    <div class="font-bold text-sm">${s.open > 0 ? s.open.toFixed(2) : '--'}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-gray text-xs">昨收</div>
+                    <div class="font-bold text-sm">${s.close > 0 ? s.close.toFixed(2) : '--'}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-gray text-xs">最高</div>
+                    <div class="font-bold text-sm text-red">${s.high > 0 ? s.high.toFixed(2) : '--'}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-gray text-xs">最低</div>
+                    <div class="font-bold text-sm text-green">${s.low > 0 ? s.low.toFixed(2) : '--'}</div>
+                </div>
+            </div>
+            ${s.time ? `<div class="text-center text-gray text-xs mb-4">更新时间: ${s.time}</div>` : ''}
+            <div class="flex gap-3">
+                ${isZixuan
+                    ? `<button onclick="removeFromZixuan('${code}')" class="flex-1 py-3 rounded-lg bg #ff4757 text-white font-bold">取消自选</button>`
+                    : `<button onclick="addToZixuan('${code}','${s.name}')" class="flex-1 py-3 rounded-lg bg #3742fa text-white font-bold">加自选 ⭐</button>`
+                }
+                <button onclick="closeModal()" class="flex-1 py-3 rounded-lg bg #2f3542 text-white font-bold">关闭</button>
+            </div>
+        `;
+    }
+
+    async function showIndexDetail(code) {
+        const data = await fetchTencentQuotes([code.replace('sh','').replace('sz','')]);
+        const idx = Object.values(data)[0];
+        if (idx) showStockDetail(idx.code || code.replace('sh','').replace('sz',''));
+    }
+
+    function closeModal(e) {
+        if (e && e.target !== e.currentTarget) return;
+        document.getElementById('stock-modal').classList.remove('show');
+    }
+
+    // ==================== 页面切换 ====================
+    async function switchPage(page) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page-' + page).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.querySelector('.nav-item[data-page="' + page + '"]').classList.add('active');
+
+        if (page === 'home') { await fetchMarketIndex(); await fetchHotStocks(); renderHome(); }
+        else if (page === 'board') { await fetchHotStocks(); renderBoard('hot'); }
+        else if (page === 'lianban') { await fetchHotStocks(); renderLianban(); }
+        else if (page === 'xuangu') { renderXuangu(); }
+        else if (page === 'zixuan') { renderZixuan(); }
+    }
+
+    function switchBoardCat(el) {
+        document.querySelectorAll('#board-tabs .tab-item').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        renderBoard(el.dataset.cat);
+    }
+
+    function switchZhanfaCat(el) {
+        document.querySelectorAll('#page-xuangu .tab-item').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        currentZhanfaCat = el.dataset.cat;
+    }
+
+    // ==================== 刷新函数 ====================
+    async function refreshHome() {
+        showToast('刷新中...');
+        await fetchMarketIndex();
+        await fetchHotStocks();
+        renderHome();
+        showToast('已更新');
+    }
+
+    async function refreshBoard() {
+        showToast('刷新中...');
+        await fetchHotStocks();
+        const activeTab = document.querySelector('#board-tabs .tab-item.active');
+        renderBoard(activeTab ? activeTab.dataset.cat : 'hot');
+        showToast('已更新');
+    }
+
+    async function refreshLianban() {
+        showToast('刷新中...');
+        await fetchHotStocks();
+        renderLianban();
+        showToast('已更新');
+    }
+
+    async function refreshZixuan() {
+        showToast('刷新中...');
+        await renderZixuan();
+        showToast('已更新');
+    }
+
+    // ==================== Toast提示 ====================
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.classList.remove('hide');
+        toast.classList.add('show');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+            toast.classList.remove('show');
+            toast.classList.add('hide');
+        }, 2000);
+    }
+
+    // ==================== 时间更新 ====================
+    function updateTime() {
+        const now = new Date();
+        document.getElementById('current-time').textContent = now.toLocaleTimeString('zh-CN', { hour12: false });
+    }
+
+    // ==================== 初始化 ====================
+    async function init() {
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // 加载数据
+        try {
+            await fetchMarketIndex();
+            await fetchHotStocks();
+        } catch(e) {
+            console.error('初始化数据失败:', e);
+        }
+
+        // 渲染首页
+        renderHome();
+        renderBoard('hot');
+        renderLianban();
+        renderXuangu();
+        renderZixuan();
+
+        // 每30秒自动刷新数据
+        setInterval(async () => {
+            try {
+                await fetchMarketIndex();
+                await fetchHotStocks();
+                if (document.getElementById('page-home').classList.contains('active')) {
+                    renderHome();
+                }
+            } catch(e) {}
+        }, 30000);
+    }
+
+    init();
+    </script>
+</body>
+</html>
